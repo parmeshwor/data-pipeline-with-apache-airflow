@@ -1,0 +1,204 @@
+# airflow is a platform to programetically author, schedule and monitor workflows.
+# workflows live as DAG of tasks. airflow-scheduler executes your tasks on an
+  array of workers.
+
+# SEED Principle
+  scalable : modular architecture and uses a message queue to orchestrate an arbitrary
+             number of workers. ready to scale to infinity
+  extensible : easily define your own operators, executors and extend the library.
+
+  elegant : pipelines are lean and explicit. uses jinga templating engine.
+
+  dynamic : airflow pipeline is configuration as code(Python), allow dynamic pipeline generation.
+
+
+# Note : airflow is not data streaming solution. Tasks do not move data from one to the other.
+
+# Running Airflow Locally :
+  - Airflow uses constraint files to enable reproducible instation, so using pip and constraint files
+    is recommended .
+
+  - $AIRFLOW_HOME folder and 'airflow.cfg' file will be created after running pip installation airflow.
+  - $AIRFLOW_HOME/airflow-webserver.pid or /run/airflow/webserver.pid PID files will also be created
+
+# airlfow uses a sqlite database, which restricts parallelization . because it works with SequentialExecutor
+  which will only run task instances sequentially. SQLite should not be used in production.
+
+# Requirement.txt vs constraints.txt :
+  Items in the requirements.txt will be installed during pip install.
+  items in constraints.txt will be referenced during direct pip install or install using requirements.txt
+
+  Constraints files differ from requirements files in one key way:
+  putting a package in the constraints file does not cause the package to be installed,
+  whereas a requirements file will install all packages listed.
+  Constraints files are simply requirements files that control which version of a package will
+  be installed but provide no control over the actual installation.
+
+  Let say you have requirements.txt file with following code
+
+    # requirements.txt
+    pandas
+
+  and constraints.txt
+
+    # constraints.txt
+     # math / science / graph stuff
+      bokeh==0.11.1
+      numpy==1.10.4
+      pandas==0.17.1
+      scipy==0.17.0
+      openpyxl==2.3.3
+      patsy==0.4.1
+      matplotlib==1.5.1
+      ggplot==0.6.8
+      seaborn==0.7.0
+      scikit-learn==0.17
+
+  executing
+
+    pip install -c constraints.txt
+
+  will install all packages from requirements.txt and
+  using constraints.txt file for version constraint.
+
+# airflow install
+  $ python3 -m venv data_env385
+  $ cd data_env385 bin/activate
+  $ pip install apache-airflow
+
+# initialize the database
+  $ airflow db init
+
+  $ airflow users create \
+        --username admin \
+        --firstname parmeshwor \
+        --lastname thapa \
+        --role Admin \
+        --email thapa.parmeshwor@gmail.com
+
+# start the web server, default port is 8085
+    $ airflow webserver --port 8085 &
+
+# start the scheduler
+# open a new terminal or else run webserver with ``-D`` option to run it as a daemon
+    $ airflow scheduler
+
+# visit localhost:8085 in the browser and use the admin account you just
+# created to login. Enable the example_bash_operator dag in the home page
+
+AWESOME : airflow is running :)
+
+# DAG definition file: The actual task defined in the DAG definition file will run in a different context
+  from the context of this script. Different tasks run on different workers at different
+  points in time, and they dont communicate by default. we need XComs for that.
+
+# Default arguments: a dictionary of default parameters that we can use when creating tasks.
+# Instantiate a DAG : we will need a DAG object to nest our task into. dag_id is unique identifier
+  for hte DAG.
+# Tasks : an object instantiated from an operator is called a task. for first argument task_id acts
+  as a unique identifier for the task. we can pass operator specific args
+  or pass args inherited from base Operator.
+
+  Precedence rule :
+    1. explicitly passed arguments
+    2. Values htat exist in the default_args dictionary
+    3. The operator's default value, if one exists
+  A task must include or inherit arguments task_id and owner, otherwise Airflow will rise an exception.
+
+# Templating with Jinja : Airflow leverages the power of Jinja Templating and provides the pipeline author
+  with a set of built-in parameters and macros. It also define hooks for customization of templates.
+
+# params hook in BaseOperator allows you to pass a dictionary or objects to templates.
+  files can be passed to 'bash_command' argument eg. bash_command='templated_command.sh', where file
+  location is relative to pipeline file.
+# setting up dependencies :
+  t1.set_downstream(t2) or
+  t2.set_upstream(t1)
+  t1>>t2
+  t2<<t1
+  both means t2 will run if t1 run is successful
+  multiple chaining dependencies
+  t1 >>t2>>t3
+
+  list of task as dependencies,
+  t1.set_downstream([t2,t3])
+  t1 >> [t2,t3]
+  [t2, t3] <<t1
+
+# airflow will raise expcetion if there is cycle in your DAG or
+  When a dependency is referenced more than once
+
+#  Running :
+  make sure no compile error
+  $ python ~/airflow/dags/tutorial.py
+  $ airflow db init
+
+  DAG pipeline should be inside airflow home ~/airflow/dags
+
+  $ airflow db init
+  $ airflow dags list
+  $ airflow tasks list basic_pipeline
+  $ airflow tasks list basic_pipeline --tree
+
+Testing :
+
+    $ airflow tasks test basic_pipeline print_date 2015-06-01
+
+    # testing sleep
+    $ airflow tasks test basic_pipeline sleep 2015-06-01
+    $ airflow tasks test basic_pipeline templated 2015-06-01
+
+    $ airflow dags backfill basic_pipeline \
+    --start-date 2015-06-01 \
+    --end-date 2015-06-07
+
+# Multiple outputs for task
+
+  @task(multiple_outputs=True)
+
+  Instead of above ,
+  @task
+  def identity_dict(x:int,y:int)->Dict[str,int]:
+      return {"x":x,"y":y}
+  Tasks can also infer multiple outputs by using dict python typing.
+
+# Adding dependency to decorated tasks from regular tasks
+
+  @task()
+  def extract_from_file():
+      """
+      #### Extract
+      """
+      order_data_file = '/tmp/order_data.csv'
+      order_data_df = pd.read_csv(order_data_file)
+
+  file_task = FileSensor(task_id='check_file', filepath='/tmp/order_data.csv')
+  order_data = extract_from_file()
+
+  file-task >> order_data
+
+
+
+# Add tags to DAGs adn use it for filtering in the UI
+from airflow import DAG
+
+dag = DAG(
+    dag_id = 'unique_dag_id',
+    schedule_interval='0 0 * * *',
+    tags=['example']
+)
+
+# Setting Configuration options
+  configuration file airflow.cfg in ~/airflow can be edited to change settings.
+
+  a. metadata database connection string
+  [core]
+  sql_alchemy_conn = sql:conn:string
+
+  or
+  export AIRFLOW__CORE__SQL_ALCHEMY_CONN=sql:conn:string
+
+  you can also derive the connection string at runtime by appending _cmd.
+
+  [core]
+  sql_alchemy_conn_cmd = bash_command_to_run

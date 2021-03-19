@@ -202,3 +202,50 @@ dag = DAG(
 
   [core]
   sql_alchemy_conn_cmd = bash_command_to_run
+
+# cron job
+  0 0 * * *
+  ( minute, hour, day(month), month, day(week)
+
+  5 4 1 1 0   => At 04:05 on day-of-month 1 and on Sunday in January
+  0 4 1 1 1 => At 04:00 on day-of-month 1 and on Monday in January
+  0 * 1 1 * => At minute 0 on day-of-month 1 in January
+  * * 1 1 * => At every minute on day-of-month 1 in January
+  10 5 * 1 * => At 05:10 in January.
+  10 * * * * => At minute 10
+
+# Concepts : The airflow platform is a tool for describing executing and monitoring workflows.
+
+  Metadata Database : Airflow uses SQL database to store metadata about the data pipelines being run.
+  Web Server and Scheduler : The airflow web server and scheduler are separate processes run on the local machine
+  and interact with database.
+
+  Executor : not really a separate process but run within the scheduler.
+
+  Worker(s) : are separate processes which also interact with the other components of the Airflow Architecture
+  and metadata repository.
+
+  airflow.cfg : is the Airflow Configuration file which is accessed by the Web Server, Scheduler and Workers.
+
+  DAGs : refers to DAG files containing python code. Location of these files is specified in the Airflow configuration file.
+
+
+# Core Ideas :
+  DAG : collection of all the tasks you want to run, organized by their dependencies. Task in DAG can say it will
+  run every night at 10 , but should not start until certain date. DAG is not concerned with what its tasks do, its
+  job is to make sure that whatever they do - it happens at the right time, or in the right order , or with the right
+  handling of any unexpected issues.
+
+
+
+  Scope : airlfow will only import DAG object from DAGfile that appear in globals()
+
+        dag_1 = DAG('This_dag_will_be_discovered')
+
+        def my_function():
+          dag_2 = DAG('but_this_dag_will_not_be_discovered')
+        my_function()
+
+  Default arguments : if a dictionary of default_args is passed to a DAG, it will apply them to any of its operators.
+
+

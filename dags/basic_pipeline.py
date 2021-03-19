@@ -1,10 +1,15 @@
 from datetime import timedelta
 from airflow import DAG  # The DAG object; we need to instantiate a DAG
 from airflow.operators.bash import BashOperator  # operators
+import datetime
 from airflow.utils.dates import days_ago
+import pendulum
 
 # below args will get passed on to each operator
 # you can override them on a per-task basis during operator initialization
+# is code change reflected
+
+local_tzone = pendulum.timezone("US/Eastern")
 
 default_args = {
     'owner': 'airflow',
@@ -20,8 +25,8 @@ dag = DAG(
     'basic_pipeline',
     default_args=default_args,
     description='A simple dag',
-    schedule_interval=timedelta(days=1),
-    start_date=days_ago(2),
+    schedule_interval=timedelta(minutes=1),
+    start_date=datetime.datetime.now(tz=local_tzone),
     tags=['example']
 )
 
